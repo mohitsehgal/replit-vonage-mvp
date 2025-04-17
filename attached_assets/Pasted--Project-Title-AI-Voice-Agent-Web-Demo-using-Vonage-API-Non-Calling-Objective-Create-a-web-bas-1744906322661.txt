@@ -1,0 +1,94 @@
+ Project Title
+AI Voice Agent Web Demo using Vonage API (Non-Calling)
+
+🧩 Objective
+Create a web-based demonstration of an AI-powered Voice Agent that uses the Vonage API (non-phone-call based) to simulate voice conversations. The agent should respond intelligently based on a configurable system prompt, and all interactions must be visually appealing with slick UI/UX animations. This demo is not intended for live phone calls — only in-browser simulations.
+
+🧠 Key Features
+1. AI Voice Agent Interaction
+Configurable System Prompt (set via text input or dropdown).
+
+Agent responds using AI (ChatGPT-like) behavior.
+
+Use text-to-speech (TTS) for AI responses.
+
+Use speech-to-text (STT) for user input.
+
+Optional: Allow manual text input for fallback.
+
+2. Vonage API Integration
+Use Vonage Voice API WebSocket or TTS/STT endpoints where available.
+
+Do not use Phone Calling features.
+
+Only use APIs to demonstrate voice AI capabilities via the web.
+
+3. Slick UI/UX
+Modern, responsive layout.
+
+Smooth animations for:
+
+Speaking indicators (e.g., waveform, pulse, mic visual).
+
+Typing indicator or "thinking" animation.
+
+Transitions between conversation turns.
+
+Use Vuetify (preferred) or Bootstrap 5 for UI components.
+
+⚙️ Functional Requirements
+UI Pages
+1. Home / Demo Screen
+Header with logo/title and optional settings button.
+
+System Prompt Input (editable field).
+
+Microphone Button to start/stop voice conversation.
+
+Transcript Section with chat-like interface (user/AI bubbles).
+
+Visual animation during agent speaking and listening.
+
+2. Settings Modal (optional)
+Set voice type (male/female).
+
+Set language/accent.
+
+Modify system prompt presets.
+
+🔧 Technical Stack
+Frontend
+Vue 3 with Composition API
+
+Vuetify 3 (preferred) or Bootstrap 5
+
+Animations: GSAP, Vue transitions, or CSS animations
+
+Audio: Web APIs (Web Speech API for STT), Web Audio API or third-party TTS
+
+Backend
+Node.js (Express)
+
+AI via OpenAI GPT API
+
+Optional: Use Vonage's TTS/STT endpoints
+
+WebSocket for real-time interaction (optional)
+
+🧪 Non-Functional Requirements
+Responsive design (Mobile + Desktop)
+
+Modular, clean code (separation of concerns)
+
+UX optimized for fast demo / pitch presentation
+
+Configurable system (e.g., changing prompts or voices easily)
+
+✅ Deliverables
+Working Vue.js web app with slick UI.
+
+System prompt-driven AI conversation flow.
+
+Voice input and output (with fallback to text).
+
+Simple Node.js backend for AI and API routing.
