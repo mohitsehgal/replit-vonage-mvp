@@ -19,8 +19,10 @@
             <!-- Previous messages rolled into a continuous transcript -->
             <div v-if="messages.length > 0" class="transcript-text">
               <template v-for="(message, index) in messages" :key="index">
-                <div :class="['transcript-entry', message.role]">
-                  <strong>{{ message.role === 'user' ? 'You' : 'AI' }}:</strong> {{ message.content }}
+                <div :class="['transcript-entry', message.role, message.isPartial ? 'partial' : '']">
+                  <strong>{{ message.role === 'user' ? 'You' : 'AI' }}:</strong> 
+                  {{ message.content }}
+                  <span v-if="message.isPartial" class="typing-indicator"></span>
                 </div>
               </template>
             </div>
@@ -367,6 +369,37 @@ export default {
   0% { opacity: 0.7; }
   50% { opacity: 1; }
   100% { opacity: 0.7; }
+}
+
+/* Partial message styling */
+.transcript-entry.partial {
+  background-color: rgba(255, 255, 255, 0.05);
+  animation: pulse 1.5s infinite;
+}
+
+.typing-indicator {
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 10px;
+  margin-left: 5px;
+}
+
+.typing-indicator::after {
+  content: "...";
+  position: absolute;
+  left: 0;
+  top: -5px;
+  animation: typingDots 1.5s infinite;
+  color: #4caf50;
+}
+
+@keyframes typingDots {
+  0% { content: "."; }
+  25% { content: ".."; }
+  50% { content: "..."; }
+  75% { content: ".."; }
+  100% { content: "."; }
 }
 
 .empty-state {

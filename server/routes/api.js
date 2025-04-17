@@ -8,7 +8,7 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Chat endpoint
+// Chat endpoint with streaming response for lower latency
 router.post('/chat', async (req, res) => {
   try {
     const { message, systemPrompt, voiceSettings } = req.body;
@@ -20,46 +20,70 @@ router.post('/chat', async (req, res) => {
       });
     }
     
-    // Get AI text response
-    const aiText = await openaiService.getAIResponse(message, systemPrompt);
+    // Start streaming response for lower latency
+    const streamingResponse = await openaiService.getStreamingAIResponse(message, systemPrompt);
     
-    // Generate audio for the response
-    let audioData;
-    try {
-      // First try Vonage TTS
-      audioData = await vonageService.textToSpeech(
-        aiText, 
-        voiceSettings?.voiceType || 'female',
-        voiceSettings?.language || 'en-US'
-      );
-    } catch (vonageError) {
-      console.warn('Vonage TTS failed, falling back to OpenAI TTS:', vonageError.message);
-      
-      // Fallback to OpenAI TTS
-      audioData = await openaiService.textToSpeech(
-        aiText, 
-        voiceSettings?.voiceType || 'female'
-      );
-    }
-    
-    // Create a temporary audio file path for frontend access
-    const timestamp = Date.now();
-    const audioFileName = `audio_${timestamp}.mp3`;
-    const audioPath = `/api/audio/${audioFileName}`;
-    
-    // Store the audio data in memory for retrieval
-    // This is a simple in-memory solution - for production we'd use proper file storage
-    if (!req.app.locals.audioCache) {
-      req.app.locals.audioCache = {};
-    }
-    req.app.locals.audioCache[audioFileName] = audioData;
-    
-    // Return both text and audio URL
+    // Return the initial streaming response immediately to reduce perceived latency
     res.json({
       success: true,
-      text: aiText,
-      audioUrl: audioPath
+      text: streamingResponse.partialText,
+      isPartial: true,
+      streamId: streamingResponse.streamId,
+      audioUrl: null // Audio will be generated on completion
     });
+    
+    // Continue processing in the background to generate full response and audio
+    openaiService.processFinalResponse(streamingResponse.streamId, streamingResponse.completeTextPromise)
+      .then(async (finalText) => {
+        console.log('Final AI response ready:', finalText.substring(0, 50) + '...');
+        
+        // Generate audio for the response
+        let audioData;
+        try {
+          // First try Vonage TTS
+          audioData = await vonageService.textToSpeech(
+            finalText, 
+            voiceSettings?.voiceType || 'female',
+            voiceSettings?.language || 'en-US'
+          );
+        } catch (vonageError) {
+          console.warn('Vonage TTS failed, falling back to OpenAI TTS:', vonageError.message);
+          
+          // Fallback to OpenAI TTS
+          audioData = await openaiService.textToSpeech(
+            finalText, 
+            voiceSettings?.voiceType || 'female'
+          );
+        }
+        
+        // Create a temporary audio file path for frontend access
+        const timestamp = Date.now();
+        const audioFileName = `audio_${timestamp}.mp3`;
+        const audioPath = `/api/audio/${audioFileName}`;
+        
+        // Store the audio data in memory for retrieval
+        if (!req.app.locals.audioCache) {
+          req.app.locals.audioCache = {};
+        }
+        req.app.locals.audioCache[audioFileName] = audioData;
+        
+        // Store the full response to be fetched by client polling
+        if (!req.app.locals.responseCache) {
+          req.app.locals.responseCache = {};
+        }
+        req.app.locals.responseCache[streamingResponse.streamId] = {
+          text: finalText,
+          audioUrl: audioPath,
+          timestamp: Date.now()
+        };
+        
+        // Cleanup old cache entries occasionally
+        cleanupOldCacheEntries(req.app.locals);
+        
+      }).catch(error => {
+        console.error('Background processing error:', error);
+      });
+      
   } catch (error) {
     console.error('Error in chat endpoint:', error);
     res.status(500).json({
@@ -69,6 +93,55 @@ router.post('/chat', async (req, res) => {
     });
   }
 });
+
+// Endpoint to check for completed responses
+router.get('/response/:streamId', (req, res) => {
+  const { streamId } = req.params;
+  
+  if (!req.app.locals.responseCache || !req.app.locals.responseCache[streamId]) {
+    return res.json({
+      success: true,
+      complete: false
+    });
+  }
+  
+  // Return the completed response with audio URL
+  const completeResponse = req.app.locals.responseCache[streamId];
+  
+  // Remove from cache to save memory
+  delete req.app.locals.responseCache[streamId];
+  
+  return res.json({
+    success: true,
+    complete: true,
+    text: completeResponse.text,
+    audioUrl: completeResponse.audioUrl
+  });
+});
+
+// Helper function to clean up old cache entries
+function cleanupOldCacheEntries(appLocals) {
+  const MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+  const now = Date.now();
+  
+  if (appLocals.responseCache) {
+    Object.keys(appLocals.responseCache).forEach(key => {
+      if (now - appLocals.responseCache[key].timestamp > MAX_AGE_MS) {
+        delete appLocals.responseCache[key];
+      }
+    });
+  }
+  
+  // Also clean up audio cache occasionally
+  if (appLocals.audioCache && Object.keys(appLocals.audioCache).length > 100) {
+    // If we have too many cached audio files, remove the oldest ones
+    const audioFiles = Object.keys(appLocals.audioCache);
+    // Keep only the 50 most recent files
+    audioFiles.slice(0, audioFiles.length - 50).forEach(file => {
+      delete appLocals.audioCache[file];
+    });
+  }
+}
 
 // Text-to-Speech endpoint
 router.post('/tts', async (req, res) => {
