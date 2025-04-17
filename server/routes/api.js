@@ -1,9 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const openaiService = require('../services/openaiService');
-const vonageService = require('../services/vonageService');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
+const openaiService = require('../services/openaiService');
+
+// Try to use the V3 compatible service if available
+let vonageService;
+try {
+  vonageService = require('../services/vonageServiceV3');
+  console.log('Using Vonage SDK V3 compatible service');
+} catch (error) {
+  console.log('Falling back to original Vonage service');
+  vonageService = require('../services/vonageService');
+}
 
 // Health check endpoint
 router.get('/health', (req, res) => {
