@@ -9,30 +9,44 @@ const isReplit = process.env.REPL_ID || process.env.REPL_SLUG;
 const isLocalDev = false; // Set to false to enable real Vonage API integration
 
 // Safely import Vonage SDK
-let Vonage;
+let vonage;
 try {
-  const VonageSDK = require('@vonage/server-sdk');
-  Vonage = VonageSDK.Vonage;
+  // Import Vonage SDK - needs to be imported differently for v3
+  const { Auth } = require('@vonage/auth');
+  const { Vonage } = require('@vonage/server-sdk');
+  const { Applications } = require('@vonage/applications');
+  const { Voice } = require('@vonage/voice');
+  
+  // Create a function to get Vonage instance with proper credentials
+  const createVonageClient = (credentials) => {
+    // Basic auth with API key and secret
+    if (credentials.apiKey && credentials.apiSecret) {
+      return new Vonage({
+        apiKey: credentials.apiKey,
+        apiSecret: credentials.apiSecret
+      });
+    }
+    // Application auth with private key
+    else if (credentials.applicationId && credentials.privateKey) {
+      return new Vonage({
+        applicationId: credentials.applicationId,
+        privateKey: credentials.privateKey
+      });
+    }
+    else {
+      throw new Error('Invalid Vonage credentials provided');
+    }
+  };
+  
+  // Export the client creator instead of a singleton
+  module.exports.createVonageClient = createVonageClient;
 } catch (error) {
   console.error('Failed to import Vonage SDK:', error);
-  // Create a mock implementation for fallback
-  Vonage = function() {
-    return {
-      applications: {
-        create: function(params, callback) {
-          callback(new Error('Vonage SDK not available'), null);
-        }
-      },
-      calls: {
-        create: function(params, callback) {
-          callback(new Error('Vonage SDK not available'), null);
-        },
-        get: function(uuid, callback) {
-          callback(new Error('Vonage SDK not available'), null);
-        }
-      }
-    };
-  };
+  // Log detailed error to help with debugging
+  console.error('Vonage SDK import error details:', {
+    message: error.message,
+    stack: error.stack
+  });
 }
 
 /**
@@ -146,42 +160,78 @@ function getVoiceName(language, voiceType) {
  * @returns {Promise<{id: string, name: string, keys: {private_key: string}}>} Application details
  */
 function createVoiceApplication(name, answerUrl, eventUrl) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       // We'll use the real Vonage API regardless of URL protocol
       // This is needed for actual integration with Vonage account
       console.log('Creating real application with Vonage API using webhooks:', answerUrl, eventUrl);
+      
+      // For Vonage SDK v3, we need to create a client differently
+      const { Vonage } = require('@vonage/server-sdk');
+      const { Applications } = require('@vonage/applications');
       
       const vonage = new Vonage({
         apiKey: VONAGE_API_KEY,
         apiSecret: VONAGE_API_SECRET
       });
       
-      vonage.applications.create({
-        name,
-        capabilities: {
-          voice: {
-            webhooks: {
-              answer_url: {
-                address: answerUrl,
-                http_method: "GET"
-              },
-              event_url: {
-                address: eventUrl,
-                http_method: "POST"
+      // Access the applications API
+      try {
+        // Use the async/await pattern for the v3 SDK
+        const result = await vonage.applications.create({
+          name,
+          capabilities: {
+            voice: {
+              webhooks: {
+                answer_url: {
+                  address: answerUrl,
+                  http_method: "GET"
+                },
+                event_url: {
+                  address: eventUrl,
+                  http_method: "POST"
+                }
               }
             }
           }
-        }
-      }, (error, result) => {
-        if (error) {
-          console.error('Error creating Vonage voice application:', error);
-          reject(error);
-        } else {
-          console.log('Successfully created Vonage voice application:', result.id);
+        });
+        
+        console.log('Successfully created Vonage voice application:', result.id);
+        resolve(result);
+      } catch (apiError) {
+        console.error('API Error creating Vonage voice application:', apiError);
+        
+        // If we get a specific error about the API being missing, try alternative approach
+        if (apiError.message && apiError.message.includes('not a function')) {
+          console.log('Trying alternative API approach for Vonage SDK v3...');
+          
+          // Try the alternative approach for v3
+          const applicationsClient = new Applications(vonage);
+          
+          const result = await applicationsClient.create({
+            name,
+            capabilities: {
+              voice: {
+                webhooks: {
+                  answer_url: {
+                    address: answerUrl,
+                    http_method: "GET"
+                  },
+                  event_url: {
+                    address: eventUrl,
+                    http_method: "POST"
+                  }
+                }
+              }
+            }
+          });
+          
+          console.log('Successfully created Vonage voice application using v3 API:', result.id);
           resolve(result);
+        } else {
+          reject(apiError);
         }
-      });
+      }
     } catch (error) {
       console.error('Error initializing Vonage client:', error);
       reject(error);
