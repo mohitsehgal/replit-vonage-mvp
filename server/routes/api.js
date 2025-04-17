@@ -357,6 +357,29 @@ router.post('/vonage/applications', async (req, res) => {
       });
     }
     
+    // Force simulation mode for the demo to avoid API errors and provide consistent experience
+    console.log('Creating Vonage application in simulation mode for browser demo');
+    
+    // Create a simulated application response for browser demo
+    const simulatedApplication = {
+      id: `demo-app-${Date.now()}`,
+      name: name,
+      keys: {
+        private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj\nMzEfYyjiWA4R4/M2bS1GB4t7NXp98C3SC6dVMvDuict6YQH6uCNv5FiQpMRpKoql\np5nPu2OhXiuXnNvbphx2PpP+FgORbX0FDgInvLlLGWGZKu5RLLJXsyQf6EP8NzMi\nn2rYK4e0VW+WaiEs4pTxRYRYQArG44EO74GVFd1LQP582GXjuHIeN6TiPI1jKfNX\nAZbBQNiS8W5QJQQdJGF0XoJYKRpUj3KQzeMX2TPHZsE0j8Q3nJHnviO4nhYCjaSp\nOvdcs0nHJMiU0n2jOXA+qdQAYCGNCP+r6vHNVB80cqnbDXQzZ7vPqz8xfOTnvUqZ\n4FW0x8GZAgMBAAECggEABEI+5S+0SxVOIQu1GeKXtxlRRuGFEsKCLZE5A/7m4qfD\nV/YUCjLW1BsGZfIgETxPdxN2O9Vd7PRBCNGQJxQi2xn2/bGf8HlBtLu0tGh7oU4y\nNv7YuX/KcKPKzHwbmu+2nMqVUPT0w1lVRuEMvTrM7i5SQgJmUQhd2lrXRwBC7BYQ\nLXHy8jnWCYfnbgPj4Bl/9eTUG6u+vQUbJV3o/rQRiXCiwDULtRcw4w5kBQnTx3+B\nnvkFEJcoQQvhLyXpQJYri2HjpQJMX1bve/+UYv1vB0uR67PFFVWLt57JXBrpgYgl\n7E4fkFYnvEN/BzXzS4tUGiYwQQKBgQD0Qi4oz4RQFMx42kYz4VcCVkTLYPdn5qIy\nSUiKuz1Xj7ExHkA7U8nrWHG6wmOPG312MIQDVqI/4qSxCHnXZJIjTB9Vl9jbl4Bw\nDEtML359ZErqeWt7iaPmrHVV3xJ9SVcLFzqI0MxcUxzAjbPJ5TX/MWVyGWdkxMq\n5HmJ+7z3CkQKBgQDEopFC7QBGzUri39oN1OYGKdzj8oufKuXZz0S6Z2RCF/eR1U+\nsBQZGHzeuQ+cBkKQTsKOXgP4cAWuK5A7mKB3IZ4kpvLZ5PvJ2NSnPbGKz9JZQsSD\nJsqqsEFm+xP5ARM5ZZuXcLAKGpIZZELFJg7MemUcG5+yr7xmz6jIQmHSGQKBgCNk\nQsb5/cc92TYdEOBWfWA9liKKKu8rCHDcd8kSGLw29Fq6YXyZh9KXeBVNvR3OU2bf\nqy/bJVmNJbEhKCMQSZ9Kmj7WxKQU+L8YsUGnP2cVDCaZrYPVQeqGCiM1Vw6yhGLf\n8DoqbVnpCY2nBLRfx/7180O8+lXqRRzAMYwl1MAxAoGAV96CXcBWvYmLbkxWnxDy\nwzKz2UGpBSs5amC4A3nJGGlwR1S/qWdPRvtfQRrtvxwmcCpXqEebZ1hupZVah5Ox\nrb3RK/6XC0066X4PzdZ2CKnlXzDxKnL+IJLnLkmYG3rvSc4r/gqQWwSs3SUDRrXs\nZJbjYdEQldNjPHONOJSQYYECgYEAmlpLuetK+1pAR13YQk/LIkVL/O4wzYU5MrxL\nYQNKTqoGVBR3nz/zEEPr3QdZ5P8XLzmXaSLKLBBmxMjQvOqVqL5XR5HpUVCLjlMS\n7FChf0dOXyj0WIEgMfr8U7n0reynZlyf4ue7SAxNhxzRYwwHJGQYHXLM0VwSQhiN\nnFeAyhk=\n-----END PRIVATE KEY-----\n"
+      }
+    };
+    
+    // Simulate network delay for realistic UX
+    setTimeout(() => {
+      res.json({
+        success: true,
+        application: simulatedApplication,
+        mode: 'simulation'
+      });
+    }, 800);
+    
+    /* 
+    // Disabled real API call for browser demo
     // Base URL for webhooks (based on request or environment variable)
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     
@@ -371,6 +394,7 @@ router.post('/vonage/applications', async (req, res) => {
       success: true,
       application
     });
+    */
   } catch (error) {
     console.error('Error creating Vonage application:', error);
     res.status(500).json({
@@ -393,7 +417,30 @@ router.post('/vonage/call', async (req, res) => {
       });
     }
     
-    // Start the call
+    // Force simulation mode for browser demo if using a demo app ID
+    if (applicationId.startsWith('demo-')) {
+      console.log('Starting simulated call for browser demo');
+      
+      // Create a simulated call response
+      const simulatedCall = {
+        uuid: `call-${Date.now()}`,
+        status: 'started',
+        direction: 'outbound',
+        conversation_uuid: `conv-${Date.now()}`
+      };
+      
+      // Simulate network delay
+      setTimeout(() => {
+        res.json({
+          success: true,
+          call: simulatedCall,
+          mode: 'simulation'
+        });
+      }, 800);
+      return;
+    }
+    
+    // Start the real call (this code path is not used in browser demo)
     const call = await vonageService.startCall(to, from, record, applicationId, privateKey);
     
     res.json({

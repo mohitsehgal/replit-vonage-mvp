@@ -353,8 +353,35 @@ function getCallInfo(callUuid, applicationId, privateKey) {
  */
 function getRecordings(applicationId, privateKey) {
   // This functionality requires Vonage Enterprise account with access to the recordings API
-  // This is a placeholder function showing how it would work
   return new Promise((resolve, reject) => {
+    // For demo purposes, simulate fetching recordings
+    if (isLocalDev || applicationId.startsWith('demo-')) {
+      console.warn('Using simulated recordings for demo purposes');
+      
+      // Simulate 1-3 recordings for the demo
+      const recordingsCount = Math.floor(Math.random() * 3) + 1;
+      const mockRecordings = [];
+      
+      for (let i = 0; i < recordingsCount; i++) {
+        const recordingDate = new Date();
+        recordingDate.setMinutes(recordingDate.getMinutes() - (i * 30)); // Space them out by 30 mins
+        
+        mockRecordings.push({
+          id: `recording-${Date.now()}-${i}`,
+          timestamp: recordingDate.toISOString(),
+          duration: Math.floor(Math.random() * 600) + 60, // 1-10 minutes in seconds
+          size: Math.floor(Math.random() * 5000000) + 500000, // 0.5-5MB
+          status: 'completed',
+          format: 'mp3',
+          url: 'https://example.com/recordings/demo.mp3' // Not a real URL
+        });
+      }
+      
+      console.log('Simulated recordings:', mockRecordings);
+      setTimeout(() => resolve(mockRecordings), 700); // Simulate network delay
+      return;
+    }
+    
     // In a real implementation, this would use Vonage's recordings API
     console.warn('Getting recordings list is only available for Vonage Enterprise accounts');
     resolve([]);

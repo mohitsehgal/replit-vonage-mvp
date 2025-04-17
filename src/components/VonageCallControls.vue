@@ -3,11 +3,18 @@
     <v-card class="vonage-card">
       <v-card-title class="vonage-card-title">
         <v-icon icon="mdi-phone" color="primary" class="mr-2"></v-icon>
-        Phone Call Recording
+        Vonage Call Recording Demo
       </v-card-title>
       
       <v-card-text>
-        <p class="mb-4">Use Vonage to make real phone calls with recording capability.</p>
+        <v-alert
+          type="info"
+          variant="outlined"
+          class="mb-4"
+          density="compact"
+        >
+          <strong>Browser-Only Demo:</strong> This feature demonstrates how Vonage call recording could be integrated. No actual phone calls will be made in this demo. The application uses simulation mode to show the user interface flow.
+        </v-alert>
         
         <v-form ref="form" v-model="isFormValid" @submit.prevent="setupVonageApplication">
           <!-- Application Setup -->
@@ -28,7 +35,7 @@
               @click="setupVonageApplication"
               block
             >
-              Create Vonage Application
+              Create Vonage Application (Browser Demo)
             </v-btn>
           </div>
           
@@ -54,6 +61,15 @@
           
           <!-- Call Controls -->
           <div v-if="hasApplication" class="call-controls">
+            <v-alert
+              type="info"
+              variant="tonal"
+              class="mb-4"
+              icon="mdi-information-outline"
+            >
+              This is a browser simulation demo. No actual phone calls will be made. Enter any phone numbers to test the UI flow.
+            </v-alert>
+            
             <v-text-field
               v-model="phoneNumber"
               label="Phone Number to Call"
@@ -90,7 +106,7 @@
               block
             >
               <v-icon left>mdi-phone-outgoing</v-icon>
-              Start Phone Call
+              Simulate Phone Call (Browser Demo)
             </v-btn>
           </div>
         </v-form>
@@ -198,14 +214,14 @@ export default {
     
     // Application data
     const hasApplication = ref(false);
-    const applicationName = ref('');
+    const applicationName = ref('Voice Demo App'); // Default name for demo
     const applicationId = ref('');
     const privateKey = ref('');
     const isCreatingApplication = ref(false);
     
     // Call data
-    const phoneNumber = ref('');
-    const fromNumber = ref('');
+    const phoneNumber = ref('+15551234567'); // Default for demo
+    const fromNumber = ref('+15557654321'); // Default for demo
     const recordCall = ref(true);
     const isCallingPhone = ref(false);
     const activeCall = ref(null);
@@ -245,7 +261,14 @@ export default {
           privateKey.value = response.data.application.keys.private_key;
           
           hasApplication.value = true;
-          showStatus('Vonage application created successfully!', 'success');
+          
+          if (response.data.mode === 'simulation') {
+            showStatus('Vonage application created successfully (simulation mode)!', 'success');
+          } else {
+            showStatus('Vonage application created successfully!', 'success');
+          }
+          
+          console.log('Vonage application created with ID:', applicationId.value);
         } else {
           showStatus('Failed to create Vonage application', 'error');
         }
