@@ -3,7 +3,7 @@
     <!-- Transcript Display for Conversation History -->
     <TranscriptDisplay />
     
-    <!-- Voice Input UI -->
+    <!-- Voice Input UI - Call-like interface -->
     <div class="voice-input-container">
       <!-- Waveform Animation -->
       <SpeechWaveform 
@@ -12,35 +12,57 @@
         :audio-level="audioLevel" 
       />
       
-      <!-- Input Controls -->
-      <div class="input-controls pa-3">
+      <!-- Call Controls -->
+      <div class="call-controls pa-3">
         <v-text-field
           v-model="textInput"
-          label="Type a message..."
+          label="Say something or type a message..."
           variant="outlined"
           density="comfortable"
           hide-details
+          rounded
+          bg-color="rgba(0, 0, 0, 0.3)"
+          dark
           append-inner-icon="mdi-send"
           @click:append-inner="sendTextMessage"
           @keyup.enter="sendTextMessage"
           :disabled="isProcessing"
+          class="message-input"
         ></v-text-field>
         
-        <div class="d-flex mt-2">
+        <div class="call-buttons mt-3">
           <v-btn
-            color="primary"
+            :color="isListening ? 'error' : 'success'"
+            :variant="isListening ? 'flat' : 'elevated'"
             :disabled="!microphoneAvailable || isProcessing"
-            :icon="isListening ? 'mdi-microphone-off' : 'mdi-microphone'"
+            rounded
+            size="large"
+            class="mic-button" 
             @click="toggleListening"
-            class="mr-2"
-          ></v-btn>
+          >
+            <v-icon :icon="isListening ? 'mdi-microphone-off' : 'mdi-microphone'" size="large" class="mr-1"></v-icon>
+            {{ isListening ? 'Stop' : 'Speak' }}
+          </v-btn>
           
-          <v-btn
-            color="secondary"
-            icon="mdi-export-variant"
-            @click="exportConversation"
-            :disabled="!hasMessages"
-          ></v-btn>
+          <div class="secondary-controls">
+            <v-btn
+              color="primary"
+              variant="tonal"
+              icon="mdi-cog"
+              size="small"
+              class="mr-2"
+              @click="$emit('open-settings')"
+            ></v-btn>
+            
+            <v-btn
+              color="primary"
+              variant="tonal"
+              icon="mdi-export-variant"
+              size="small"
+              @click="exportConversation"
+              :disabled="!hasMessages"
+            ></v-btn>
+          </div>
         </div>
       </div>
     </div>
@@ -194,6 +216,20 @@ export default {
       }
     };
     
+    // Setup auto-listening after AI response
+    const setupAutoListening = () => {
+      // Listen for AI response completion
+      document.addEventListener('ai-response-complete', (event) => {
+        if (event.detail.autoRestartListening && !isListening.value && !isProcessing.value && microphoneAvailable.value) {
+          console.log('Auto-restarting listening after AI response');
+          // Small delay to give the user a moment
+          setTimeout(() => {
+            toggleListening();
+          }, 300);
+        }
+      });
+    };
+    
     // Send text message to AI and handle continuous conversation
     const sendTextMessage = async () => {
       if ((!textInput.value.trim() && !isListening.value) || store.getters.isProcessing) return;
@@ -203,44 +239,13 @@ export default {
       const messageText = isListening.value ? '' : textInput.value.trim();
       
       if (messageText) {
+        // Send message to AI through store action
         await store.dispatch('addMessage', messageText);
         textInput.value = '';
-      
-        // Get the latest message (which should be AI's response)
-        const messages = store.getters.allMessages;
-        const latestMessage = messages[messages.length - 1];
         
-        if (latestMessage && latestMessage.role === 'assistant' && latestMessage.audio) {
-          // Play audio response
-          playAudioResponse(latestMessage.audio);
-        }
+        // Audio will be automatically played by TranscriptDisplay component
+        // which watches for new messages with audio attachments
       }
-    };
-    
-    // Play audio response
-    const playAudioResponse = (audioUrl) => {
-      // Create audio element
-      const audio = new Audio(audioUrl);
-      
-      // Set up event listeners
-      audio.onplay = () => {
-        isPlaying.value = true;
-      };
-      
-      audio.onended = () => {
-        isPlaying.value = false;
-        // In a call-like experience, we might auto-start listening again
-        if (microphoneAvailable.value && !isListening.value) {
-          // Optional: Auto-restart listening after AI response
-          // toggleListening();
-        }
-      };
-      
-      // Play the audio
-      audio.play().catch(error => {
-        console.error('Error playing audio:', error);
-        isPlaying.value = false;
-      });
     };
     
     // Export conversation as text
@@ -276,6 +281,7 @@ export default {
     onMounted(() => {
       setupSpeechRecognition();
       setupAudioAnalysis();
+      setupAutoListening();
     });
     
     onBeforeUnmount(() => {

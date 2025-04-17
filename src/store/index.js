@@ -75,6 +75,15 @@ export function createStore() {
         }
       },
       
+      // Called when audio response finishes playing
+      audioEnded({ commit, state, dispatch }) {
+        console.log('Audio finished playing - ready for next input');
+        // We could dispatch an event for VoiceAgent to auto-restart listening here
+        document.dispatchEvent(new CustomEvent('ai-response-complete', {
+          detail: { autoRestartListening: true }
+        }));
+      },
+      
       updateSystemPrompt({ commit }, prompt) {
         commit('UPDATE_SYSTEM_PROMPT', prompt);
       },
