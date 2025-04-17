@@ -148,24 +148,9 @@ function getVoiceName(language, voiceType) {
 function createVoiceApplication(name, answerUrl, eventUrl) {
   return new Promise((resolve, reject) => {
     try {
-      // Check if we're in a development environment without public URLs
-      // In a real production environment, the webhooks need to be publicly accessible
-      if (isLocalDev || !answerUrl.startsWith('https://')) {
-        console.warn('Vonage Voice API requires public HTTPS webhooks. Creating simulated application for demo purposes.');
-        
-        // Create a simulated application response for testing/demo purposes
-        const mockApplication = {
-          id: `demo-app-${Date.now()}`,
-          name: name,
-          keys: {
-            private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj\nMzEfYyjiWA4R4/M2bS1GB4t7NXp98C3SC6dVMvDuict6YQH6uCNv5FiQpMRpKoql\np5nPu2OhXiuXnNvbphx2PpP+FgORbX0FDgInvLlLGWGZKu5RLLJXsyQf6EP8NzMi\nn2rYK4e0VW+WaiEs4pTxRYRYQArG44EO74GVFd1LQP582GXjuHIeN6TiPI1jKfNX\nAZbBQNiS8W5QJQQdJGF0XoJYKRpUj3KQzeMX2TPHZsE0j8Q3nJHnviO4nhYCjaSp\nOvdcs0nHJMiU0n2jOXA+qdQAYCGNCP+r6vHNVB80cqnbDXQzZ7vPqz8xfOTnvUqZ\n4FW0x8GZAgMBAAECggEABEI+5S+0SxVOIQu1GeKXtxlRRuGFEsKCLZE5A/7m4qfD\nV/YUCjLW1BsGZfIgETxPdxN2O9Vd7PRBCNGQJxQi2xn2/bGf8HlBtLu0tGh7oU4y\nNv7YuX/KcKPKzHwbmu+2nMqVUPT0w1lVRuEMvTrM7i5SQgJmUQhd2lrXRwBC7BYQ\nLXHy8jnWCYfnbgPj4Bl/9eTUG6u+vQUbJV3o/rQRiXCiwDULtRcw4w5kBQnTx3+B\nnvkFEJcoQQvhLyXpQJYri2HjpQJMX1bve/+UYv1vB0uR67PFFVWLt57JXBrpgYgl\n7E4fkFYnvEN/BzXzS4tUGiYwQQKBgQD0Qi4oz4RQFMx42kYz4VcCVkTLYPdn5qIy\nSUiKuz1Xj7ExHkA7U8nrWHG6wmOPG312MIQDVqI/4qSxCHnXZJIjTB9Vl9jbl4Bw\nDEtML359ZErqeWt7iaPmrHVV3xJ9SVcLFzqI0MxcUxzAjbPJ5TX/MWVyGWdkxMq\n5HmJ+7z3CkQKBgQDEopFC7QBGzUri39oN1OYGKdzj8oufKuXZz0S6Z2RCF/eR1U+\nsBQZGHzeuQ+cBkKQTsKOXgP4cAWuK5A7mKB3IZ4kpvLZ5PvJ2NSnPbGKz9JZQsSD\nJsqqsEFm+xP5ARM5ZZuXcLAKGpIZZELFJg7MemUcG5+yr7xmz6jIQmHSGQKBgCNk\nQsb5/cc92TYdEOBWfWA9liKKKu8rCHDcd8kSGLw29Fq6YXyZh9KXeBVNvR3OU2bf\nqy/bJVmNJbEhKCMQSZ9Kmj7WxKQU+L8YsUGnP2cVDCaZrYPVQeqGCiM1Vw6yhGLf\n8DoqbVnpCY2nBLRfx/7180O8+lXqRRzAMYwl1MAxAoGAV96CXcBWvYmLbkxWnxDy\nwzKz2UGpBSs5amC4A3nJGGlwR1S/qWdPRvtfQRrtvxwmcCpXqEebZ1hupZVah5Ox\nrb3RK/6XC0066X4PzdZ2CKnlXzDxKnL+IJLnLkmYG3rvSc4r/gqQWwSs3SUDRrXs\nZJbjYdEQldNjPHONOJSQYYECgYEAmlpLuetK+1pAR13YQk/LIkVL/O4wzYU5MrxL\nYQNKTqoGVBR3nz/zEEPr3QdZ5P8XLzmXaSLKLBBmxMjQvOqVqL5XR5HpUVCLjlMS\n7FChf0dOXyj0WIEgMfr8U7n0reynZlyf4ue7SAxNhxzRYwwHJGQYHXLM0VwSQhiN\nnFeAyhk=\n-----END PRIVATE KEY-----\n"
-          }
-        };
-        
-        console.log('Successfully created simulated Vonage voice application for demo:', mockApplication.id);
-        setTimeout(() => resolve(mockApplication), 500); // Simulate network delay
-        return;
-      }
+      // We'll use the real Vonage API regardless of URL protocol
+      // This is needed for actual integration with Vonage account
+      console.log('Creating real application with Vonage API using webhooks:', answerUrl, eventUrl);
       
       const vonage = new Vonage({
         apiKey: VONAGE_API_KEY,
@@ -216,23 +201,7 @@ function createVoiceApplication(name, answerUrl, eventUrl) {
 function startCall(to, from, record = true, applicationId, privateKey) {
   return new Promise((resolve, reject) => {
     try {
-      // Check if we're in a development environment or have app ID that begins with "demo-"
-      // This indicates we're using the simulated application from createVoiceApplication
-      if (isLocalDev || applicationId.startsWith('demo-')) {
-        console.warn('Using simulated call for demo purposes.');
-        
-        // Simulate a successful call response for demo/testing
-        const mockCall = {
-          uuid: `call-${Date.now()}`,
-          status: 'started',
-          direction: 'outbound',
-          conversation_uuid: `conv-${Date.now()}`
-        };
-        
-        console.log('Call simulated successfully:', mockCall);
-        setTimeout(() => resolve(mockCall), 800); // Simulate network delay
-        return;
-      }
+      console.log('Starting real call using Vonage API to:', to, 'from:', from);
       
       // Create a specialized client with application credentials
       const vonageApp = new Vonage({
@@ -299,30 +268,7 @@ function startCall(to, from, record = true, applicationId, privateKey) {
 function getCallInfo(callUuid, applicationId, privateKey) {
   return new Promise((resolve, reject) => {
     try {
-      // Check if we're in a development environment or have app ID that begins with "demo-"
-      // Or if the call UUID starts with "call-" (from our simulated call)
-      if (isLocalDev || applicationId.startsWith('demo-') || callUuid.startsWith('call-')) {
-        console.warn('Using simulated call info for demo purposes.');
-        
-        // Get a random status for the simulated call
-        const possibleStatuses = ['started', 'ringing', 'answered', 'completed'];
-        const randomStatusIndex = Math.floor(Math.random() * possibleStatuses.length);
-        
-        // Simulate a call info response
-        const mockCallInfo = {
-          uuid: callUuid,
-          status: possibleStatuses[randomStatusIndex],
-          direction: 'outbound',
-          conversation_uuid: callUuid.replace('call-', 'conv-'),
-          rate: "0.01400000",
-          price: "0.00280000",
-          duration: "120"
-        };
-        
-        console.log('Call info retrieved successfully (simulated):', mockCallInfo);
-        setTimeout(() => resolve(mockCallInfo), 600); // Simulate network delay
-        return;
-      }
+      console.log('Getting real call info using Vonage API for UUID:', callUuid);
       
       // Create a specialized client with application credentials
       const vonageApp = new Vonage({
@@ -352,39 +298,63 @@ function getCallInfo(callUuid, applicationId, privateKey) {
  * @returns {Promise<Array>} List of recordings
  */
 function getRecordings(applicationId, privateKey) {
-  // This functionality requires Vonage Enterprise account with access to the recordings API
+  // Vonage doesn't expose a simple recordings API for non-enterprise accounts
+  // So we'll handle recordings manually through webhooks
   return new Promise((resolve, reject) => {
-    // For demo purposes, simulate fetching recordings
-    if (isLocalDev || applicationId.startsWith('demo-')) {
-      console.warn('Using simulated recordings for demo purposes');
+    try {
+      console.log('Getting recordings for application:', applicationId);
       
-      // Simulate 1-3 recordings for the demo
-      const recordingsCount = Math.floor(Math.random() * 3) + 1;
-      const mockRecordings = [];
+      // Create a specialized client with application credentials
+      const vonageApp = new Vonage({
+        applicationId,
+        privateKey
+      });
       
-      for (let i = 0; i < recordingsCount; i++) {
-        const recordingDate = new Date();
-        recordingDate.setMinutes(recordingDate.getMinutes() - (i * 30)); // Space them out by 30 mins
-        
-        mockRecordings.push({
-          id: `recording-${Date.now()}-${i}`,
-          timestamp: recordingDate.toISOString(),
-          duration: Math.floor(Math.random() * 600) + 60, // 1-10 minutes in seconds
-          size: Math.floor(Math.random() * 5000000) + 500000, // 0.5-5MB
-          status: 'completed',
-          format: 'mp3',
-          url: 'https://example.com/recordings/demo.mp3' // Not a real URL
-        });
+      // In a production app with persistent storage, we would:
+      // 1. Query our database for stored recordings associated with this application
+      // 2. Return the list of recordings with their metadata
+      
+      // Since we're downloading recordings via webhook, we'll check the recordings directory
+      const fs = require('fs');
+      const path = require('path');
+      const recordingsDir = path.join(__dirname, '../../recordings');
+      
+      // Create the directory if it doesn't exist
+      if (!fs.existsSync(recordingsDir)) {
+        fs.mkdirSync(recordingsDir, { recursive: true });
+        return resolve([]); // No recordings yet
       }
       
-      console.log('Simulated recordings:', mockRecordings);
-      setTimeout(() => resolve(mockRecordings), 700); // Simulate network delay
-      return;
+      // Read recordings from the directory
+      fs.readdir(recordingsDir, (err, files) => {
+        if (err) {
+          console.error('Error reading recordings directory:', err);
+          return reject(err);
+        }
+        
+        // Filter for MP3 files and create recording objects
+        const recordings = files
+          .filter(file => file.endsWith('.mp3'))
+          .map(file => {
+            const stats = fs.statSync(path.join(recordingsDir, file));
+            return {
+              id: file.replace('.mp3', ''),
+              timestamp: stats.mtime.toISOString(),
+              duration: Math.floor(stats.size / 16000), // Rough estimate of duration based on file size
+              size: stats.size,
+              status: 'completed',
+              format: 'mp3',
+              filePath: path.join(recordingsDir, file)
+            };
+          });
+        
+        console.log(`Found ${recordings.length} recordings in ${recordingsDir}`);
+        resolve(recordings);
+      });
+    } catch (error) {
+      console.error('Error getting recordings:', error);
+      reject(error);
     }
-    
-    // In a real implementation, this would use Vonage's recordings API
-    console.warn('Getting recordings list is only available for Vonage Enterprise accounts');
-    resolve([]);
   });
 }
 
