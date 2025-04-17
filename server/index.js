@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+// Load environment variables from .env file
+require('dotenv').config();
 const apiRoutes = require('./routes/api');
 
 // Initialize express app

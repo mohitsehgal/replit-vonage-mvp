@@ -1,6 +1,8 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+// Load .env file
+require('dotenv').config();
 
 // Ensure dist directory exists
 const distDir = path.join(__dirname, 'dist');
