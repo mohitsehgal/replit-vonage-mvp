@@ -88,9 +88,31 @@ export default {
             .map(result => result.transcript)
             .join('');
           
+          // Update textInput in real-time for visual feedback
+          textInput.value = transcript;
+          
+          // When recognition is final, send the message
           if (event.results[0].isFinal) {
-            textInput.value = transcript;
-            sendTextMessage();
+            // Stop listening first to prevent overlap
+            recognition.stop();
+            isListening.value = false;
+            
+            // Send the transcript as message
+            store.dispatch('addMessage', transcript).then(() => {
+              // Clear the input field
+              textInput.value = '';
+              
+              // Get the latest message (which should be AI's response)
+              setTimeout(() => {
+                const messages = store.getters.allMessages;
+                const latestMessage = messages[messages.length - 1];
+                
+                if (latestMessage && latestMessage.role === 'assistant' && latestMessage.audio) {
+                  // Play audio response
+                  playAudioResponse(latestMessage.audio);
+                }
+              }, 500); // Small delay to ensure message is processed
+            });
           }
         };
         
@@ -172,22 +194,53 @@ export default {
       }
     };
     
-    // Send text message to AI
-    const sendTextMessage = () => {
-      if (!textInput.value.trim() || store.getters.isProcessing) return;
+    // Send text message to AI and handle continuous conversation
+    const sendTextMessage = async () => {
+      if ((!textInput.value.trim() && !isListening.value) || store.getters.isProcessing) return;
       
-      store.dispatch('addMessage', textInput.value.trim());
-      textInput.value = '';
+      // If we're listening, use the transcript from speech recognition
+      // Otherwise use the text input
+      const messageText = isListening.value ? '' : textInput.value.trim();
       
-      // Simulate audio playback for response
-      setTimeout(() => {
-        isPlaying.value = true;
+      if (messageText) {
+        await store.dispatch('addMessage', messageText);
+        textInput.value = '';
+      
+        // Get the latest message (which should be AI's response)
+        const messages = store.getters.allMessages;
+        const latestMessage = messages[messages.length - 1];
         
-        // Simulate audio playback ending
-        setTimeout(() => {
-          isPlaying.value = false;
-        }, 3000);
-      }, 1500);
+        if (latestMessage && latestMessage.role === 'assistant' && latestMessage.audio) {
+          // Play audio response
+          playAudioResponse(latestMessage.audio);
+        }
+      }
+    };
+    
+    // Play audio response
+    const playAudioResponse = (audioUrl) => {
+      // Create audio element
+      const audio = new Audio(audioUrl);
+      
+      // Set up event listeners
+      audio.onplay = () => {
+        isPlaying.value = true;
+      };
+      
+      audio.onended = () => {
+        isPlaying.value = false;
+        // In a call-like experience, we might auto-start listening again
+        if (microphoneAvailable.value && !isListening.value) {
+          // Optional: Auto-restart listening after AI response
+          // toggleListening();
+        }
+      };
+      
+      // Play the audio
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        isPlaying.value = false;
+      });
     };
     
     // Export conversation as text

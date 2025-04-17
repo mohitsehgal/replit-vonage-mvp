@@ -1,36 +1,48 @@
 <template>
   <div class="transcript-container">
     <div class="transcript" ref="transcriptRef">
-      <v-card 
-        v-for="(message, index) in messages" 
-        :key="index"
-        :class="['message-card mb-3', message.role === 'user' ? 'user-message' : 'ai-message']"
-        variant="outlined"
-        :color="message.role === 'user' ? 'primary' : 'secondary'"
-      >
-        <v-card-title class="text-subtitle-1 px-4 py-2">
-          <v-icon :icon="message.role === 'user' ? 'mdi-account' : 'mdi-robot'" class="mr-2"></v-icon>
-          {{ message.role === 'user' ? 'You' : 'AI Assistant' }}
+      <!-- Call-like continuous conversation display -->
+      <div class="call-container">
+        <div class="call-header">
+          <v-chip color="success" class="mr-2" size="small" label>Connected</v-chip>
+          <span class="call-title">Voice Conversation</span>
           <v-spacer></v-spacer>
-          <span class="text-caption">{{ formatTime(message.timestamp) }}</span>
-        </v-card-title>
+          <span class="call-timer">{{ callDuration }}</span>
+        </div>
         
-        <v-card-text class="pa-4">
-          {{ message.content }}
-        </v-card-text>
-        
-        <v-card-actions v-if="message.role === 'assistant' && message.audio" class="pa-2">
-          <audio 
-            :src="message.audio" 
-            controls 
-            class="audio-player"
-          ></audio>
-        </v-card-actions>
-      </v-card>
-      
-      <div v-if="isProcessing" class="processing-indicator">
-        <v-progress-circular indeterminate></v-progress-circular>
-        <span class="ml-2">Processing...</span>
+        <div class="call-messages">
+          <div 
+            v-for="(message, index) in messages" 
+            :key="index"
+            :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']"
+          >
+            <div class="message-header">
+              <v-avatar :color="message.role === 'user' ? 'primary' : 'secondary'" size="32" class="mr-2">
+                <v-icon :icon="message.role === 'user' ? 'mdi-account' : 'mdi-robot'" size="16"></v-icon>
+              </v-avatar>
+              <span class="message-name">{{ message.role === 'user' ? 'You' : 'AI Assistant' }}</span>
+              <v-spacer></v-spacer>
+              <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+            </div>
+            
+            <div class="message-content">
+              {{ message.content }}
+            </div>
+            
+            <div v-if="message.role === 'assistant' && message.audio" class="message-audio">
+              <audio 
+                :src="message.audio" 
+                controls 
+                class="audio-player"
+              ></audio>
+            </div>
+          </div>
+          
+          <div v-if="isProcessing" class="processing-indicator">
+            <v-progress-circular indeterminate size="24"></v-progress-circular>
+            <span class="ml-2">AI is responding...</span>
+          </div>
+        </div>
       </div>
       
       <div v-if="error" class="error-message mt-3">
@@ -40,15 +52,18 @@
       </div>
       
       <div v-if="messages.length === 0" class="empty-state">
-        <v-icon icon="mdi-text-box-outline" size="large" class="mb-2"></v-icon>
-        <p>No messages yet. Start speaking or typing to begin the conversation.</p>
+        <v-avatar color="primary" size="64" class="mb-4">
+          <v-icon size="36">mdi-phone-in-talk</v-icon>
+        </v-avatar>
+        <h3 class="text-h6 mb-2">Start Your Conversation</h3>
+        <p class="text-subtitle-2">Click the microphone button or type a message to begin talking with the AI assistant.</p>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { useStore } from 'vuex';
 
 export default {
@@ -56,10 +71,34 @@ export default {
   setup() {
     const store = useStore();
     const transcriptRef = ref(null);
+    const startTime = ref(new Date());
+    const callDuration = ref('00:00');
+    const durationInterval = ref(null);
     
     const messages = computed(() => store.getters.allMessages);
     const isProcessing = computed(() => store.getters.isProcessing);
     const error = computed(() => store.getters.error);
+    
+    // Start call timer
+    const startCallTimer = () => {
+      durationInterval.value = setInterval(() => {
+        const now = new Date();
+        const diff = Math.floor((now - startTime.value) / 1000);
+        const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+        const seconds = (diff % 60).toString().padStart(2, '0');
+        callDuration.value = `${minutes}:${seconds}`;
+      }, 1000);
+    };
+    
+    // Start timer on component creation
+    startCallTimer();
+    
+    // Clean up interval when component is destroyed
+    onBeforeUnmount(() => {
+      if (durationInterval.value) {
+        clearInterval(durationInterval.value);
+      }
+    });
     
     // Scroll to bottom when new messages arrive
     watch(messages, () => {
@@ -83,7 +122,8 @@ export default {
       isProcessing,
       error,
       transcriptRef,
-      formatTime
+      formatTime,
+      callDuration
     };
   }
 };

@@ -1,8 +1,8 @@
 const axios = require('axios');
 
 // Vonage API credentials
-const VONAGE_API_KEY = process.env.VONAGE_API_KEY || 'your-vonage-api-key';
-const VONAGE_API_SECRET = process.env.VONAGE_API_SECRET || 'your-vonage-api-secret';
+const VONAGE_API_KEY = process.env.VONAGE_API_KEY;
+const VONAGE_API_SECRET = process.env.VONAGE_API_SECRET;
 
 /**
  * Convert text to speech using Vonage TTS API

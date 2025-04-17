@@ -3,7 +3,7 @@ const axios = require('axios');
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'your-api-key-here'
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 /**
