@@ -145,13 +145,96 @@ export default {
   flex-direction: column;
 }
 
-.message-card {
-  width: 85%;
+/* Call-like UI styles */
+.call-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.03);
   border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.call-header {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background-color: rgba(30, 30, 30, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.call-title {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.call-timer {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.call-messages {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.message {
+  margin-bottom: 1.5rem;
+  max-width: 90%;
+  transition: all 0.3s ease;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.message-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.message-time {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.message-content {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  margin-left: 2.5rem;
+  line-height: 1.5;
+}
+
+.message-audio {
+  margin-top: 0.5rem;
+  margin-left: 2.5rem;
 }
 
 .user-message {
   align-self: flex-end;
+}
+
+.user-message .message-content {
+  background-color: rgba(25, 118, 210, 0.15);
+  margin-left: 0;
+  margin-right: 2.5rem;
+}
+
+.user-message .message-header {
+  flex-direction: row-reverse;
+}
+
+.user-message .message-audio {
+  margin-left: 0;
+  margin-right: 2.5rem;
 }
 
 .ai-message {
@@ -160,14 +243,17 @@ export default {
 
 .audio-player {
   width: 100%;
-  margin-top: 0.5rem;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .processing-indicator {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin: 1rem 0;
+  justify-content: flex-start;
+  margin: 1rem 0 1rem 2.5rem;
+  color: #aaa;
+  font-size: 0.9rem;
 }
 
 .empty-state {
