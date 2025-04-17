@@ -89,6 +89,7 @@ export default {
   setup() {
     const store = useStore();
     const showSettings = ref(false);
+    const activeTab = ref('basic'); // Default to basic settings tab
     
     const clearConversation = () => {
       store.dispatch('clearMessages');
@@ -96,6 +97,7 @@ export default {
     
     return {
       showSettings,
+      activeTab,
       clearConversation
     };
   }
