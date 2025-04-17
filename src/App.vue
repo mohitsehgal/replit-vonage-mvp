@@ -17,7 +17,7 @@
         <v-row class="fill-height">
           <v-col :cols="12" :md="showSettings ? 8 : 12" class="d-flex flex-column transition-col">
             <!-- Main Voice Agent Interface -->
-            <VoiceAgent />
+            <VoiceAgent @open-settings="showSettings = true" />
           </v-col>
           
           <v-col v-if="showSettings" cols="12" md="4" class="settings-panel">

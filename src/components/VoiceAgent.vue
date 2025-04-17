@@ -81,6 +81,7 @@ export default {
     TranscriptDisplay,
     SpeechWaveform
   },
+  emits: ['open-settings'],
   setup() {
     const store = useStore();
     const textInput = ref('');
@@ -124,16 +125,8 @@ export default {
               // Clear the input field
               textInput.value = '';
               
-              // Get the latest message (which should be AI's response)
-              setTimeout(() => {
-                const messages = store.getters.allMessages;
-                const latestMessage = messages[messages.length - 1];
-                
-                if (latestMessage && latestMessage.role === 'assistant' && latestMessage.audio) {
-                  // Play audio response
-                  playAudioResponse(latestMessage.audio);
-                }
-              }, 500); // Small delay to ensure message is processed
+              // Audio will be automatically played by TranscriptDisplay component
+              // which watches for new messages with audio attachments
             });
           }
         };
@@ -316,21 +309,62 @@ export default {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 .voice-input-container {
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: rgba(30, 30, 30, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(10, 10, 10, 0.8);
+  padding-bottom: 12px;
 }
 
-.input-controls {
+.call-controls {
   display: flex;
   flex-direction: column;
 }
 
+.message-input {
+  border-radius: 24px;
+}
+
+.call-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mic-button {
+  min-width: 120px;
+  border-radius: 24px;
+  transition: all 0.3s ease;
+}
+
+.mic-button:hover {
+  transform: scale(1.05);
+}
+
+.secondary-controls {
+  display: flex;
+  align-items: center;
+}
+
 @media (max-width: 600px) {
-  .input-controls {
+  .call-controls {
     padding: 8px;
+  }
+  
+  .call-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .mic-button {
+    width: 100%;
+  }
+  
+  .secondary-controls {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>
