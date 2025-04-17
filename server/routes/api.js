@@ -470,7 +470,35 @@ router.get('/vonage/call/:uuid', async (req, res) => {
       });
     }
     
-    // Get call information
+    // Force simulation mode for browser demo if using a demo app ID or call ID
+    if (applicationId.startsWith('demo-') || uuid.startsWith('call-')) {
+      console.log('Using simulated call info for browser demo');
+      
+      // Get a random status for the simulated call
+      const possibleStatuses = ['started', 'ringing', 'answered', 'completed'];
+      const randomStatusIndex = Math.floor(Math.random() * possibleStatuses.length);
+      
+      // Simulate a call info response
+      const simulatedCallInfo = {
+        uuid: uuid,
+        status: possibleStatuses[randomStatusIndex],
+        direction: 'outbound',
+        conversation_uuid: uuid.replace('call-', 'conv-'),
+        timestamp: new Date().toISOString()
+      };
+      
+      // Simulate network delay
+      setTimeout(() => {
+        res.json({
+          success: true,
+          call: simulatedCallInfo,
+          mode: 'simulation'
+        });
+      }, 800);
+      return;
+    }
+    
+    // Get call information from real API (this code path is not used in browser demo)
     const callInfo = await vonageService.getCallInfo(uuid, applicationId, privateKey);
     
     res.json({
@@ -499,7 +527,41 @@ router.get('/vonage/recordings', async (req, res) => {
       });
     }
     
-    // Get recordings list
+    // Force simulation mode for browser demo if using a demo app ID
+    if (applicationId.startsWith('demo-')) {
+      console.log('Using simulated recordings for browser demo');
+      
+      // Simulate 1-3 recordings for the demo
+      const recordingCount = Math.floor(Math.random() * 3) + 1;
+      const simulatedRecordings = [];
+      
+      for (let i = 0; i < recordingCount; i++) {
+        const recordingDate = new Date();
+        recordingDate.setMinutes(recordingDate.getMinutes() - (i * 30)); // Space them out by 30 mins
+        
+        simulatedRecordings.push({
+          id: `recording-${Date.now()}-${i}`,
+          timestamp: recordingDate.toISOString(),
+          duration: Math.floor(Math.random() * 600) + 60, // 1-10 minutes in seconds
+          size: Math.floor(Math.random() * 5000000) + 500000, // 0.5-5MB
+          status: 'completed',
+          format: 'mp3',
+          url: 'https://example.com/recordings/demo.mp3' // Not a real URL
+        });
+      }
+      
+      // Simulate network delay
+      setTimeout(() => {
+        res.json({
+          success: true,
+          recordings: simulatedRecordings,
+          mode: 'simulation'
+        });
+      }, 800);
+      return;
+    }
+    
+    // Get recordings list from real API (this code path is not used in browser demo)
     const recordings = await vonageService.getRecordings(applicationId, privateKey);
     
     res.json({
