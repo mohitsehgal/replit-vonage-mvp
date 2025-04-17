@@ -357,29 +357,8 @@ router.post('/vonage/applications', async (req, res) => {
       });
     }
     
-    // Force simulation mode for the demo to avoid API errors and provide consistent experience
-    console.log('Creating Vonage application in simulation mode for browser demo');
+    console.log('Creating real Vonage application:', name);
     
-    // Create a simulated application response for browser demo
-    const simulatedApplication = {
-      id: `demo-app-${Date.now()}`,
-      name: name,
-      keys: {
-        private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj\nMzEfYyjiWA4R4/M2bS1GB4t7NXp98C3SC6dVMvDuict6YQH6uCNv5FiQpMRpKoql\np5nPu2OhXiuXnNvbphx2PpP+FgORbX0FDgInvLlLGWGZKu5RLLJXsyQf6EP8NzMi\nn2rYK4e0VW+WaiEs4pTxRYRYQArG44EO74GVFd1LQP582GXjuHIeN6TiPI1jKfNX\nAZbBQNiS8W5QJQQdJGF0XoJYKRpUj3KQzeMX2TPHZsE0j8Q3nJHnviO4nhYCjaSp\nOvdcs0nHJMiU0n2jOXA+qdQAYCGNCP+r6vHNVB80cqnbDXQzZ7vPqz8xfOTnvUqZ\n4FW0x8GZAgMBAAECggEABEI+5S+0SxVOIQu1GeKXtxlRRuGFEsKCLZE5A/7m4qfD\nV/YUCjLW1BsGZfIgETxPdxN2O9Vd7PRBCNGQJxQi2xn2/bGf8HlBtLu0tGh7oU4y\nNv7YuX/KcKPKzHwbmu+2nMqVUPT0w1lVRuEMvTrM7i5SQgJmUQhd2lrXRwBC7BYQ\nLXHy8jnWCYfnbgPj4Bl/9eTUG6u+vQUbJV3o/rQRiXCiwDULtRcw4w5kBQnTx3+B\nnvkFEJcoQQvhLyXpQJYri2HjpQJMX1bve/+UYv1vB0uR67PFFVWLt57JXBrpgYgl\n7E4fkFYnvEN/BzXzS4tUGiYwQQKBgQD0Qi4oz4RQFMx42kYz4VcCVkTLYPdn5qIy\nSUiKuz1Xj7ExHkA7U8nrWHG6wmOPG312MIQDVqI/4qSxCHnXZJIjTB9Vl9jbl4Bw\nDEtML359ZErqeWt7iaPmrHVV3xJ9SVcLFzqI0MxcUxzAjbPJ5TX/MWVyGWdkxMq\n5HmJ+7z3CkQKBgQDEopFC7QBGzUri39oN1OYGKdzj8oufKuXZz0S6Z2RCF/eR1U+\nsBQZGHzeuQ+cBkKQTsKOXgP4cAWuK5A7mKB3IZ4kpvLZ5PvJ2NSnPbGKz9JZQsSD\nJsqqsEFm+xP5ARM5ZZuXcLAKGpIZZELFJg7MemUcG5+yr7xmz6jIQmHSGQKBgCNk\nQsb5/cc92TYdEOBWfWA9liKKKu8rCHDcd8kSGLw29Fq6YXyZh9KXeBVNvR3OU2bf\nqy/bJVmNJbEhKCMQSZ9Kmj7WxKQU+L8YsUGnP2cVDCaZrYPVQeqGCiM1Vw6yhGLf\n8DoqbVnpCY2nBLRfx/7180O8+lXqRRzAMYwl1MAxAoGAV96CXcBWvYmLbkxWnxDy\nwzKz2UGpBSs5amC4A3nJGGlwR1S/qWdPRvtfQRrtvxwmcCpXqEebZ1hupZVah5Ox\nrb3RK/6XC0066X4PzdZ2CKnlXzDxKnL+IJLnLkmYG3rvSc4r/gqQWwSs3SUDRrXs\nZJbjYdEQldNjPHONOJSQYYECgYEAmlpLuetK+1pAR13YQk/LIkVL/O4wzYU5MrxL\nYQNKTqoGVBR3nz/zEEPr3QdZ5P8XLzmXaSLKLBBmxMjQvOqVqL5XR5HpUVCLjlMS\n7FChf0dOXyj0WIEgMfr8U7n0reynZlyf4ue7SAxNhxzRYwwHJGQYHXLM0VwSQhiN\nnFeAyhk=\n-----END PRIVATE KEY-----\n"
-      }
-    };
-    
-    // Simulate network delay for realistic UX
-    setTimeout(() => {
-      res.json({
-        success: true,
-        application: simulatedApplication,
-        mode: 'simulation'
-      });
-    }, 800);
-    
-    /* 
-    // Disabled real API call for browser demo
     // Base URL for webhooks (based on request or environment variable)
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     
@@ -392,9 +371,9 @@ router.post('/vonage/applications', async (req, res) => {
     
     res.json({
       success: true,
-      application
+      application,
+      mode: 'production'
     });
-    */
   } catch (error) {
     console.error('Error creating Vonage application:', error);
     res.status(500).json({
@@ -417,35 +396,15 @@ router.post('/vonage/call', async (req, res) => {
       });
     }
     
-    // Force simulation mode for browser demo if using a demo app ID
-    if (applicationId.startsWith('demo-')) {
-      console.log('Starting simulated call for browser demo');
-      
-      // Create a simulated call response
-      const simulatedCall = {
-        uuid: `call-${Date.now()}`,
-        status: 'started',
-        direction: 'outbound',
-        conversation_uuid: `conv-${Date.now()}`
-      };
-      
-      // Simulate network delay
-      setTimeout(() => {
-        res.json({
-          success: true,
-          call: simulatedCall,
-          mode: 'simulation'
-        });
-      }, 800);
-      return;
-    }
+    console.log('Starting real phone call to:', to, 'from:', from);
     
-    // Start the real call (this code path is not used in browser demo)
+    // Start the real call with real Vonage API
     const call = await vonageService.startCall(to, from, record, applicationId, privateKey);
     
     res.json({
       success: true,
-      call
+      call,
+      mode: 'production'
     });
   } catch (error) {
     console.error('Error starting call:', error);
@@ -470,40 +429,15 @@ router.get('/vonage/call/:uuid', async (req, res) => {
       });
     }
     
-    // Force simulation mode for browser demo if using a demo app ID or call ID
-    if (applicationId.startsWith('demo-') || uuid.startsWith('call-')) {
-      console.log('Using simulated call info for browser demo');
-      
-      // Get a random status for the simulated call
-      const possibleStatuses = ['started', 'ringing', 'answered', 'completed'];
-      const randomStatusIndex = Math.floor(Math.random() * possibleStatuses.length);
-      
-      // Simulate a call info response
-      const simulatedCallInfo = {
-        uuid: uuid,
-        status: possibleStatuses[randomStatusIndex],
-        direction: 'outbound',
-        conversation_uuid: uuid.replace('call-', 'conv-'),
-        timestamp: new Date().toISOString()
-      };
-      
-      // Simulate network delay
-      setTimeout(() => {
-        res.json({
-          success: true,
-          call: simulatedCallInfo,
-          mode: 'simulation'
-        });
-      }, 800);
-      return;
-    }
+    console.log('Getting call information for UUID:', uuid);
     
-    // Get call information from real API (this code path is not used in browser demo)
+    // Get call information using real Vonage API
     const callInfo = await vonageService.getCallInfo(uuid, applicationId, privateKey);
     
     res.json({
       success: true,
-      call: callInfo
+      call: callInfo,
+      mode: 'production'
     });
   } catch (error) {
     console.error('Error getting call info:', error);
@@ -527,46 +461,15 @@ router.get('/vonage/recordings', async (req, res) => {
       });
     }
     
-    // Force simulation mode for browser demo if using a demo app ID
-    if (applicationId.startsWith('demo-')) {
-      console.log('Using simulated recordings for browser demo');
-      
-      // Simulate 1-3 recordings for the demo
-      const recordingCount = Math.floor(Math.random() * 3) + 1;
-      const simulatedRecordings = [];
-      
-      for (let i = 0; i < recordingCount; i++) {
-        const recordingDate = new Date();
-        recordingDate.setMinutes(recordingDate.getMinutes() - (i * 30)); // Space them out by 30 mins
-        
-        simulatedRecordings.push({
-          id: `recording-${Date.now()}-${i}`,
-          timestamp: recordingDate.toISOString(),
-          duration: Math.floor(Math.random() * 600) + 60, // 1-10 minutes in seconds
-          size: Math.floor(Math.random() * 5000000) + 500000, // 0.5-5MB
-          status: 'completed',
-          format: 'mp3',
-          url: 'https://example.com/recordings/demo.mp3' // Not a real URL
-        });
-      }
-      
-      // Simulate network delay
-      setTimeout(() => {
-        res.json({
-          success: true,
-          recordings: simulatedRecordings,
-          mode: 'simulation'
-        });
-      }, 800);
-      return;
-    }
+    console.log('Getting recordings list for application:', applicationId);
     
-    // Get recordings list from real API (this code path is not used in browser demo)
+    // Get recordings list from real Vonage API
     const recordings = await vonageService.getRecordings(applicationId, privateKey);
     
     res.json({
       success: true,
-      recordings
+      recordings,
+      mode: 'production'
     });
   } catch (error) {
     console.error('Error listing recordings:', error);
@@ -615,12 +518,6 @@ router.post('/vonage/recordings', async (req, res) => {
     // This webhook receives recording information when a call recording completes
     console.log('Recording webhook received:', req.body);
     
-    // In a production app, you would:
-    // 1. Download the recording from the URL in req.body.recording_url
-    // 2. Store it in your database/storage
-    // 3. Process it as needed
-    
-    // For demo purposes, we'll just log it
     const recordingUrl = req.body.recording_url;
     const recordingUuid = req.body.recording_uuid;
     
@@ -633,9 +530,25 @@ router.post('/vonage/recordings', async (req, res) => {
       
       console.log(`Recording available at ${recordingUrl} with UUID ${recordingUuid}`);
       
-      // In a real implementation, you would download the recording here
-      // const response = await axios.get(recordingUrl, { responseType: 'arraybuffer' });
-      // fs.writeFileSync(path.join(recordingsDir, `${recordingUuid}.mp3`), Buffer.from(response.data));
+      try {
+        // Download the recording
+        const axios = require('axios');
+        const response = await axios.get(recordingUrl, { 
+          responseType: 'arraybuffer',
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`${process.env.VONAGE_API_KEY}:${process.env.VONAGE_API_SECRET}`).toString('base64')}`
+          }
+        });
+        
+        // Save the recording to the recordings directory
+        const fs = require('fs');
+        const recordingPath = path.join(recordingsDir, `${recordingUuid}.mp3`);
+        fs.writeFileSync(recordingPath, Buffer.from(response.data));
+        
+        console.log(`Successfully downloaded recording to ${recordingPath}`);
+      } catch (downloadError) {
+        console.error('Error downloading recording:', downloadError);
+      }
     }
     
     res.status(204).end();

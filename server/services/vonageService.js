@@ -6,7 +6,7 @@ const VONAGE_API_SECRET = process.env.VONAGE_API_SECRET;
 
 // Detect environment (Replit, localhost, etc.)
 const isReplit = process.env.REPL_ID || process.env.REPL_SLUG;
-const isLocalDev = process.env.NODE_ENV === 'development' && !isReplit;
+const isLocalDev = false; // Set to false to enable real Vonage API integration
 
 // Safely import Vonage SDK
 let Vonage;
