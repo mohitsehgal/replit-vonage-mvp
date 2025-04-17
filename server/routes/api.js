@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const openaiService = require('../services/openaiService');
 const vonageService = require('../services/vonageService');
+const fs = require('fs');
+const path = require('path');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -23,13 +25,54 @@ router.post('/chat', async (req, res) => {
     // Start streaming response for lower latency
     const streamingResponse = await openaiService.getStreamingAIResponse(message, systemPrompt);
     
-    // Return the initial streaming response immediately to reduce perceived latency
+    // We'll generate audio for initial chunk immediately to start speaking right away
+    let initialAudioData;
+    let initialAudioPath = null;
+    
+    if (streamingResponse.partialText && streamingResponse.partialText.length > 10) {
+      try {
+        // Generate audio for the initial chunk
+        const timestamp = Date.now();
+        const initialAudioFileName = `audio_initial_${timestamp}.mp3`;
+        
+        try {
+          // First try Vonage TTS for initial chunk
+          initialAudioData = await vonageService.textToSpeech(
+            streamingResponse.partialText,
+            voiceSettings?.voiceType || 'female',
+            voiceSettings?.language || 'en-US'
+          );
+        } catch (vonageError) {
+          console.warn('Vonage TTS failed for initial chunk, using OpenAI TTS:', vonageError.message);
+          
+          // Fallback to OpenAI TTS
+          initialAudioData = await openaiService.textToSpeech(
+            streamingResponse.partialText,
+            voiceSettings?.voiceType || 'female'
+          );
+        }
+        
+        initialAudioPath = `/api/audio/${initialAudioFileName}`;
+        
+        // Store the audio data in memory for retrieval
+        if (!req.app.locals.audioCache) {
+          req.app.locals.audioCache = {};
+        }
+        req.app.locals.audioCache[initialAudioFileName] = initialAudioData;
+        
+        console.log('Generated initial audio for first chunk');
+      } catch (audioError) {
+        console.error('Failed to generate initial audio:', audioError);
+      }
+    }
+    
+    // Return the initial streaming response immediately with initial audio if available
     res.json({
       success: true,
       text: streamingResponse.partialText,
       isPartial: true,
       streamId: streamingResponse.streamId,
-      audioUrl: null // Audio will be generated on completion
+      audioUrl: initialAudioPath
     });
     
     // Continue processing in the background to generate full response and audio
@@ -37,12 +80,68 @@ router.post('/chat', async (req, res) => {
       .then(async (finalText) => {
         console.log('Final AI response ready:', finalText.substring(0, 50) + '...');
         
-        // Generate audio for the response
+        // Skip regenerating audio for the entire response if it's very similar to the initial chunk
+        // This prevents weird audio stuttering when responses are very short
+        if (initialAudioPath && 
+            streamingResponse.partialText && 
+            finalText.length < streamingResponse.partialText.length * 1.5) {
+          
+          console.log('Using initial audio chunk as final audio (response similar to initial chunk)');
+          
+          // Store the full response to be fetched by client polling
+          if (!req.app.locals.responseCache) {
+            req.app.locals.responseCache = {};
+          }
+          req.app.locals.responseCache[streamingResponse.streamId] = {
+            text: finalText,
+            audioUrl: initialAudioPath,
+            timestamp: Date.now()
+          };
+          
+          // Cleanup old cache entries occasionally
+          cleanupOldCacheEntries(req.app.locals);
+          return;
+        }
+        
+        // For longer responses, generate audio for the complete text
+        // We'll strip out the initial text that was already spoken to avoid repetition
+        let audioText = finalText;
+        if (initialAudioPath && streamingResponse.partialText) {
+          // Only generate audio for the remainder of the text to avoid repetition
+          const initialLength = streamingResponse.partialText.length;
+          if (initialLength > 0 && finalText.startsWith(streamingResponse.partialText)) {
+            audioText = finalText.substring(initialLength);
+            console.log('Generating audio only for the remainder of the response');
+          }
+        }
+        
+        // If there's no additional text to speak, just use the initial audio
+        if (!audioText || audioText.trim().length === 0) {
+          if (initialAudioPath) {
+            console.log('No additional text to speak, using initial audio only');
+            
+            // Store the full response to be fetched by client polling
+            if (!req.app.locals.responseCache) {
+              req.app.locals.responseCache = {};
+            }
+            req.app.locals.responseCache[streamingResponse.streamId] = {
+              text: finalText,
+              audioUrl: initialAudioPath,
+              timestamp: Date.now()
+            };
+            
+            // Cleanup old cache entries occasionally
+            cleanupOldCacheEntries(req.app.locals);
+            return;
+          }
+        }
+        
+        // Generate audio for the remaining response text
         let audioData;
         try {
           // First try Vonage TTS
           audioData = await vonageService.textToSpeech(
-            finalText, 
+            audioText, 
             voiceSettings?.voiceType || 'female',
             voiceSettings?.language || 'en-US'
           );
@@ -51,7 +150,7 @@ router.post('/chat', async (req, res) => {
           
           // Fallback to OpenAI TTS
           audioData = await openaiService.textToSpeech(
-            finalText, 
+            audioText, 
             voiceSettings?.voiceType || 'female'
           );
         }
@@ -71,11 +170,24 @@ router.post('/chat', async (req, res) => {
         if (!req.app.locals.responseCache) {
           req.app.locals.responseCache = {};
         }
-        req.app.locals.responseCache[streamingResponse.streamId] = {
-          text: finalText,
-          audioUrl: audioPath,
-          timestamp: Date.now()
-        };
+        
+        // If we have initial audio and continuation audio, we need to indicate this
+        // so client can play them in sequence
+        if (initialAudioPath) {
+          req.app.locals.responseCache[streamingResponse.streamId] = {
+            text: finalText,
+            audioUrl: audioPath,
+            initialAudioUrl: initialAudioPath,
+            hasMultipartAudio: true,
+            timestamp: Date.now()
+          };
+        } else {
+          req.app.locals.responseCache[streamingResponse.streamId] = {
+            text: finalText,
+            audioUrl: audioPath,
+            timestamp: Date.now()
+          };
+        }
         
         // Cleanup old cache entries occasionally
         cleanupOldCacheEntries(req.app.locals);
@@ -111,12 +223,24 @@ router.get('/response/:streamId', (req, res) => {
   // Remove from cache to save memory
   delete req.app.locals.responseCache[streamId];
   
-  return res.json({
-    success: true,
-    complete: true,
-    text: completeResponse.text,
-    audioUrl: completeResponse.audioUrl
-  });
+  // Check if this is a multipart audio response
+  if (completeResponse.hasMultipartAudio) {
+    return res.json({
+      success: true,
+      complete: true,
+      text: completeResponse.text,
+      audioUrl: completeResponse.audioUrl,
+      initialAudioUrl: completeResponse.initialAudioUrl,
+      hasMultipartAudio: true
+    });
+  } else {
+    return res.json({
+      success: true,
+      complete: true,
+      text: completeResponse.text,
+      audioUrl: completeResponse.audioUrl
+    });
+  }
 });
 
 // Helper function to clean up old cache entries
@@ -214,6 +338,203 @@ router.post('/stt', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to convert speech to text',
+      error: error.message
+    });
+  }
+});
+
+// Vonage Voice API endpoints
+
+// Create a Vonage Voice application
+router.post('/vonage/applications', async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Application name is required'
+      });
+    }
+    
+    // Base URL for webhooks (based on request or environment variable)
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    
+    // Create webhook URLs
+    const answerUrl = `${baseUrl}/api/vonage/answer`;
+    const eventUrl = `${baseUrl}/api/vonage/event`;
+    
+    // Create the application
+    const application = await vonageService.createVoiceApplication(name, answerUrl, eventUrl);
+    
+    res.json({
+      success: true,
+      application
+    });
+  } catch (error) {
+    console.error('Error creating Vonage application:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create Vonage application',
+      error: error.message
+    });
+  }
+});
+
+// Start a phone call
+router.post('/vonage/call', async (req, res) => {
+  try {
+    const { to, from, record, applicationId, privateKey } = req.body;
+    
+    if (!to || !from || !applicationId || !privateKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: to, from, applicationId, privateKey'
+      });
+    }
+    
+    // Start the call
+    const call = await vonageService.startCall(to, from, record, applicationId, privateKey);
+    
+    res.json({
+      success: true,
+      call
+    });
+  } catch (error) {
+    console.error('Error starting call:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to start call',
+      error: error.message
+    });
+  }
+});
+
+// Get call information
+router.get('/vonage/call/:uuid', async (req, res) => {
+  try {
+    const { uuid } = req.params;
+    const { applicationId, privateKey } = req.query;
+    
+    if (!applicationId || !privateKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: applicationId, privateKey'
+      });
+    }
+    
+    // Get call information
+    const callInfo = await vonageService.getCallInfo(uuid, applicationId, privateKey);
+    
+    res.json({
+      success: true,
+      call: callInfo
+    });
+  } catch (error) {
+    console.error('Error getting call info:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get call information',
+      error: error.message
+    });
+  }
+});
+
+// List recordings
+router.get('/vonage/recordings', async (req, res) => {
+  try {
+    const { applicationId, privateKey } = req.query;
+    
+    if (!applicationId || !privateKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: applicationId, privateKey'
+      });
+    }
+    
+    // Get recordings list
+    const recordings = await vonageService.getRecordings(applicationId, privateKey);
+    
+    res.json({
+      success: true,
+      recordings
+    });
+  } catch (error) {
+    console.error('Error listing recordings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to list recordings',
+      error: error.message
+    });
+  }
+});
+
+// NCCO answer webhook for Vonage Voice API
+router.get('/vonage/answer', (req, res) => {
+  // This endpoint provides the call flow instructions when a call connects
+  // Return a Nexmo Call Control Object (NCCO)
+  const ncco = [
+    {
+      action: 'talk',
+      text: 'Welcome to the AI Voice Agent. This call may be recorded for quality assurance.',
+      voiceName: 'Amy'
+    },
+    {
+      action: 'conversation',
+      name: `conversation-${Date.now()}`,
+      startOnEnter: true,
+      endOnExit: true,
+      record: true
+    }
+  ];
+  
+  res.json(ncco);
+});
+
+// Event webhook for Vonage Voice API
+router.post('/vonage/event', (req, res) => {
+  // This endpoint receives call events (started, ringing, answered, completed, etc.)
+  console.log('Vonage call event received:', req.body);
+  
+  // No specific processing needed, just acknowledge receipt
+  res.status(204).end();
+});
+
+// Recording webhook for Vonage Voice API
+router.post('/vonage/recordings', async (req, res) => {
+  try {
+    // This webhook receives recording information when a call recording completes
+    console.log('Recording webhook received:', req.body);
+    
+    // In a production app, you would:
+    // 1. Download the recording from the URL in req.body.recording_url
+    // 2. Store it in your database/storage
+    // 3. Process it as needed
+    
+    // For demo purposes, we'll just log it
+    const recordingUrl = req.body.recording_url;
+    const recordingUuid = req.body.recording_uuid;
+    
+    if (recordingUrl && recordingUuid) {
+      // Create a recordings directory if it doesn't exist
+      const recordingsDir = path.join(__dirname, '../../recordings');
+      if (!fs.existsSync(recordingsDir)) {
+        fs.mkdirSync(recordingsDir, { recursive: true });
+      }
+      
+      console.log(`Recording available at ${recordingUrl} with UUID ${recordingUuid}`);
+      
+      // In a real implementation, you would download the recording here
+      // const response = await axios.get(recordingUrl, { responseType: 'arraybuffer' });
+      // fs.writeFileSync(path.join(recordingsDir, `${recordingUuid}.mp3`), Buffer.from(response.data));
+    }
+    
+    res.status(204).end();
+  } catch (error) {
+    console.error('Error processing recording webhook:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process recording',
       error: error.message
     });
   }

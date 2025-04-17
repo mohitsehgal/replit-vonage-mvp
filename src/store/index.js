@@ -158,15 +158,39 @@ export function createStore() {
           const response = await axios.get(`/api/response/${streamId}`);
           
           if (response.data.complete) {
-            // Update the message with complete text and audio
-            commit('UPDATE_MESSAGE', {
-              index: pendingResponse.messageIndex,
-              updates: {
-                content: response.data.text,
-                audio: response.data.audioUrl,
-                isPartial: false
-              }
-            });
+            // Check if we already have audio for this message (from initial partial response)
+            const existingMessage = state.messages[pendingResponse.messageIndex];
+            const alreadyHasAudio = existingMessage && existingMessage.audio;
+            
+            // Handle multipart audio responses
+            if (response.data.hasMultipartAudio) {
+              // For multipart audio, we need to update differently
+              // We'll use an array of audio URLs that will be played in sequence
+              commit('UPDATE_MESSAGE', {
+                index: pendingResponse.messageIndex,
+                updates: {
+                  content: response.data.text,
+                  isPartial: false,
+                  // If we already have the initial audio playing, don't include it again
+                  audioSequence: alreadyHasAudio ? 
+                    [response.data.audioUrl] : 
+                    [response.data.initialAudioUrl, response.data.audioUrl],
+                  // For compatibility with existing components, set the main audio
+                  // to the continuation if we're already playing the initial audio
+                  audio: alreadyHasAudio ? response.data.audioUrl : response.data.initialAudioUrl
+                }
+              });
+            } else {
+              // For regular single audio responses
+              commit('UPDATE_MESSAGE', {
+                index: pendingResponse.messageIndex,
+                updates: {
+                  content: response.data.text,
+                  audio: response.data.audioUrl,
+                  isPartial: false
+                }
+              });
+            }
             
             // Remove from pending responses
             commit('REMOVE_PENDING_RESPONSE', streamId);

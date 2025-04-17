@@ -37,8 +37,21 @@
               </div>
               <v-divider class="mb-3"></v-divider>
               <v-card-text>
-                <SystemPromptInput />
-                <VoiceSettings />
+                <v-tabs v-model="activeTab">
+                  <v-tab value="basic">Basic Settings</v-tab>
+                  <v-tab value="advanced">Vonage Call Features</v-tab>
+                </v-tabs>
+                
+                <v-window v-model="activeTab" class="mt-4">
+                  <v-window-item value="basic">
+                    <SystemPromptInput />
+                    <VoiceSettings />
+                  </v-window-item>
+                  
+                  <v-window-item value="advanced">
+                    <VonageCallControls />
+                  </v-window-item>
+                </v-window>
               </v-card-text>
               <v-card-actions>
                 <v-btn color="error" @click="clearConversation">
@@ -63,13 +76,15 @@ import { useStore } from 'vuex';
 import VoiceAgent from './components/VoiceAgent.vue';
 import SystemPromptInput from './components/SystemPromptInput.vue';
 import VoiceSettings from './components/VoiceSettings.vue';
+import VonageCallControls from './components/VonageCallControls.vue';
 
 export default {
   name: 'App',
   components: {
     VoiceAgent,
     SystemPromptInput,
-    VoiceSettings
+    VoiceSettings,
+    VonageCallControls
   },
   setup() {
     const store = useStore();

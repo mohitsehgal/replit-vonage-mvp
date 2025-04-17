@@ -4,6 +4,33 @@ const axios = require('axios');
 const VONAGE_API_KEY = process.env.VONAGE_API_KEY;
 const VONAGE_API_SECRET = process.env.VONAGE_API_SECRET;
 
+// Safely import Vonage SDK
+let Vonage;
+try {
+  const VonageSDK = require('@vonage/server-sdk');
+  Vonage = VonageSDK.Vonage;
+} catch (error) {
+  console.error('Failed to import Vonage SDK:', error);
+  // Create a mock implementation for fallback
+  Vonage = function() {
+    return {
+      applications: {
+        create: function(params, callback) {
+          callback(new Error('Vonage SDK not available'), null);
+        }
+      },
+      calls: {
+        create: function(params, callback) {
+          callback(new Error('Vonage SDK not available'), null);
+        },
+        get: function(uuid, callback) {
+          callback(new Error('Vonage SDK not available'), null);
+        }
+      }
+    };
+  };
+}
+
 /**
  * Convert text to speech using Vonage TTS API
  * @param {string} text - Text to convert to speech
@@ -86,6 +113,172 @@ function getVoiceName(language, voiceType) {
   return langVoices[voiceType] || (voiceType === 'male' ? 'Matthew' : 'Kimberly');
 }
 
+/**
+ * Create a Vonage voice application for call capabilities
+ * @param {string} name - Application name
+ * @param {string} answerUrl - Webhook URL for answer events
+ * @param {string} eventUrl - Webhook URL for call events
+ * @returns {Promise<{id: string, name: string, keys: {private_key: string}}>} Application details
+ */
+function createVoiceApplication(name, answerUrl, eventUrl) {
+  return new Promise((resolve, reject) => {
+    try {
+      const vonage = new Vonage({
+        apiKey: VONAGE_API_KEY,
+        apiSecret: VONAGE_API_SECRET
+      });
+      
+      vonage.applications.create({
+        name,
+        capabilities: {
+          voice: {
+            webhooks: {
+              answer_url: {
+                address: answerUrl,
+                http_method: "GET"
+              },
+              event_url: {
+                address: eventUrl,
+                http_method: "POST"
+              }
+            }
+          }
+        }
+      }, (error, result) => {
+        if (error) {
+          console.error('Error creating Vonage voice application:', error);
+          reject(error);
+        } else {
+          console.log('Successfully created Vonage voice application:', result.id);
+          resolve(result);
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing Vonage client:', error);
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Start a voice call with recording capability
+ * @param {string} to - Phone number to call
+ * @param {string} from - Your Vonage virtual number
+ * @param {boolean} record - Whether to record the call
+ * @param {string} applicationId - Vonage application ID
+ * @param {string} privateKey - Private key for the application
+ * @returns {Promise<{uuid: string, status: string}>} Call information
+ */
+function startCall(to, from, record = true, applicationId, privateKey) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a specialized client with application credentials
+      const vonageApp = new Vonage({
+        applicationId,
+        privateKey
+      });
+      
+      // NCCO (Nexmo Call Control Object) for call flow
+      const ncco = [
+        {
+          action: 'talk',
+          text: 'This call will be recorded for quality assurance. Press star to end the call.',
+          voiceName: 'Amy'
+        }
+      ];
+      
+      // Add recording if enabled
+      if (record) {
+        ncco.push({
+          action: 'record',
+          eventUrl: [`${process.env.BASE_URL || 'https://example.com'}/api/vonage/recordings`],
+          beepStart: true,
+          endOnSilence: 5,
+          endOnKey: '*'
+        });
+      }
+      
+      // Add conversation action
+      ncco.push({
+        action: 'conversation',
+        name: `conversation-${Date.now()}`,
+        startOnEnter: true,
+        endOnExit: true
+      });
+      
+      // Start the call
+      vonageApp.calls.create({
+        to: [{ type: 'phone', number: to }],
+        from: { type: 'phone', number: from },
+        ncco
+      }, (error, response) => {
+        if (error) {
+          console.error('Error starting call:', error);
+          reject(error);
+        } else {
+          console.log('Call started successfully:', response);
+          resolve(response);
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing Vonage app client:', error);
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Get information about a specific call
+ * @param {string} callUuid - UUID of the call
+ * @param {string} applicationId - Vonage application ID
+ * @param {string} privateKey - Private key for the application
+ * @returns {Promise<Object>} Call details
+ */
+function getCallInfo(callUuid, applicationId, privateKey) {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a specialized client with application credentials
+      const vonageApp = new Vonage({
+        applicationId,
+        privateKey
+      });
+      
+      vonageApp.calls.get(callUuid, (error, response) => {
+        if (error) {
+          console.error('Error getting call info:', error);
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing Vonage app client:', error);
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Get a list of recordings
+ * @param {string} applicationId - Vonage application ID
+ * @param {string} privateKey - Private key for the application
+ * @returns {Promise<Array>} List of recordings
+ */
+function getRecordings(applicationId, privateKey) {
+  // This functionality requires Vonage Enterprise account with access to the recordings API
+  // This is a placeholder function showing how it would work
+  return new Promise((resolve, reject) => {
+    // In a real implementation, this would use Vonage's recordings API
+    console.warn('Getting recordings list is only available for Vonage Enterprise accounts');
+    resolve([]);
+  });
+}
+
 module.exports = {
-  textToSpeech
+  textToSpeech,
+  createVoiceApplication,
+  startCall,
+  getCallInfo,
+  getRecordings,
+  getVoiceName
 };

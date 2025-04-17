@@ -91,11 +91,38 @@ export default {
     const isProcessing = computed(() => store.getters.isProcessing);
     const error = computed(() => store.getters.error);
     
+    // For sequential audio playback
+    const currentAudioSequence = ref([]);
+    const currentAudioIndex = ref(0);
+    
     // Set audio from the latest assistant message
     watch(messages, (newMessages) => {
       if (newMessages.length > 0) {
         const latestMessage = newMessages[newMessages.length - 1];
-        if (latestMessage.role === 'assistant' && latestMessage.audio) {
+        
+        // Handle audio sequences if available
+        if (latestMessage.role === 'assistant' && latestMessage.audioSequence && latestMessage.audioSequence.length > 0) {
+          // Set up a sequence of audio files to play one after another
+          currentAudioSequence.value = [...latestMessage.audioSequence];
+          currentAudioIndex.value = 0;
+          
+          // Start with the first audio in sequence
+          currentAudioPlaying.value = currentAudioSequence.value[0];
+          
+          // Focus the audio element and auto-play first in sequence
+          setTimeout(() => {
+            if (currentAudio.value) {
+              currentAudio.value.play().catch(err => console.error('Failed to auto-play audio sequence:', err));
+            }
+          }, 100);
+        } 
+        // Traditional single audio file
+        else if (latestMessage.role === 'assistant' && latestMessage.audio) {
+          // Clear any sequence data
+          currentAudioSequence.value = [];
+          currentAudioIndex.value = 0;
+          
+          // Play single audio file
           currentAudioPlaying.value = latestMessage.audio;
           
           // Focus the audio element and auto-play
@@ -108,10 +135,27 @@ export default {
       }
     }, { deep: true });
     
-    // Audio ending handler - signal parent to possibly restart listening
+    // Audio ending handler - handles sequence playback or signals completion
     const audioEnded = () => {
-      store.dispatch('audioEnded');
-      currentAudioPlaying.value = null;
+      // If we're playing a sequence and there are more files to play
+      if (currentAudioSequence.value.length > 0 && currentAudioIndex.value < currentAudioSequence.value.length - 1) {
+        // Move to next audio in sequence
+        currentAudioIndex.value++;
+        currentAudioPlaying.value = currentAudioSequence.value[currentAudioIndex.value];
+        
+        // Play the next audio in sequence
+        setTimeout(() => {
+          if (currentAudio.value) {
+            currentAudio.value.play().catch(err => console.error('Failed to auto-play next in sequence:', err));
+          }
+        }, 100);
+      } else {
+        // Either single audio or last in sequence has finished
+        store.dispatch('audioEnded');
+        currentAudioPlaying.value = null;
+        currentAudioSequence.value = [];
+        currentAudioIndex.value = 0;
+      }
     };
     
     // Start call timer
