@@ -5,15 +5,10 @@ const path = require('path');
 const axios = require('axios');
 const openaiService = require('../services/openaiService');
 
-// Try to use the V3 compatible service if available
-let vonageService;
-try {
-  vonageService = require('../services/vonageServiceV3');
-  console.log('Using Vonage SDK V3 compatible service');
-} catch (error) {
-  console.log('Falling back to original Vonage service');
-  vonageService = require('../services/vonageService');
-}
+// Use the REST API implementation of Vonage service
+// This avoids SDK compatibility issues by making direct HTTP calls
+const vonageService = require('../services/vonageServiceREST');
+console.log('Using Vonage REST API service');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
